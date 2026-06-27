@@ -1,8 +1,6 @@
 # FHE NTT Accelerator
 
-Toy Verilog/SystemVerilog repository for building up a small homomorphic-encryption hardware accelerator, starting from the polynomial arithmetic used in RLWE-based schemes.
-
-This repository is intentionally versioned by folders so each step can stay small and independently testable.
+Toy Verilog/SystemVerilog repository for homomorphic-encryption hardware accelerator.
 
 ## Versions
 
