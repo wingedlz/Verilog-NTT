@@ -1,0 +1,14 @@
+# Build outputs
+build/
+*.vvp
+*.vcd
+*.fst
+
+# Editor / OS noise
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
