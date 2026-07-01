@@ -4,13 +4,10 @@
 // -----------------------------------------------------------------------------
 // v1 parameters
 // -----------------------------------------------------------------------------
-// N=4096 is intentionally much larger than the previous toy N=8 example.
-// q=65537 is an NTT-friendly Fermat prime. It satisfies q = 1 mod 2N, so a
+// N=4096.
+// q=65537 satisfies q = 1 mod 2N.
 // primitive 2N-th root psi exists for negacyclic multiplication mod x^N + 1.
-//
-// These parameters are still small compared with production BFV/CKKS RNS
-// ciphertext moduli, but they are practical for Icarus Verilog simulation and
-// close to the structure used by real RLWE HE accelerators.
+
 
 `define NTT_N              4096
 `define NTT_LOG_N          12
@@ -29,8 +26,7 @@
 `define INV_N              65521
 
 // Barrett constants for mod_mul.
-// product width is 2*COEFF_W = 34 bits.  Using shift=34 keeps the intermediate
-// multiply within a simple 64-bit path for this v1 modulus.
+// product width is 2*COEFF_W = 34 bits. 
 `define BARRETT_SHIFT      34
 `define BARRETT_MU         262140
 
