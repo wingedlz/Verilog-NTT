@@ -1,10 +1,10 @@
-# v1 — RAM-handshake NTT polynomial 
+# v1 — NTT polynomial 
 
 tb_v1.sv
  ├─ sync_ram_dp      // A polynomial RAM
  ├─ sync_ram_dp      // B polynomial RAM
  ├─ sync_ram_dp      // C/output RAM
- ├─ ntt_core         // forward / inverse NTT 수행
+ ├─ ntt_core         // forward / inverse NTT
  ├─ poly_add_engine  // A+B mod q
  └─ pointwise_mul_engine // A[i]*B[i] mod q
 
@@ -28,7 +28,8 @@ omega = 54449     // psi^2, primitive N-th root of unity
 ```
 
 `q = 65537` -> `q ≡ 1 mod 2N`
-## 구현된 기능
+
+## Implemented Features
 
 ```text
 poly_add:
@@ -50,7 +51,7 @@ polynomial multiplication:
 ```
 
 ```text
-start -> busy -> RAM read/write 반복 -> done
+start -> busy -> repeat RAM read/write -> done
 ```
 
 RTL modules:
@@ -59,7 +60,7 @@ RTL modules:
 rtl/he_params.vh
 rtl/mod_add.v
 rtl/mod_sub.v
-rtl/mod_mul.v              // '%' 없는 Barrett reduction
+rtl/mod_mul.v
 rtl/sync_ram_dp.v          // synchronous dual-port RAM, req/valid handshake
 rtl/table_rom.v            // table memory, req/valid handshake
 rtl/ntt_core.v             // forward/inverse negacyclic NTT FSM
@@ -120,7 +121,7 @@ Expected result:
 PASS: all v1 RAM/handshake NTT tests passed
 ```
 
-## Notes on Algorithm
+## Algorithm
 
 negacyclic convolution
 

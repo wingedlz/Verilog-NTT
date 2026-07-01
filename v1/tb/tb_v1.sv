@@ -24,7 +24,6 @@ module tb_v1;
         forever #5 clk = ~clk;
     end
 
-    // Hardwired test vectors and expected outputs.
     reg [COEFF_W-1:0] a_init  [0:N-1];
     reg [COEFF_W-1:0] b_init  [0:N-1];
     reg [COEFF_W-1:0] exp_add [0:N-1];
@@ -41,10 +40,6 @@ module tb_v1;
         `include "hardwired_vectors.svh"
     end
 
-    // ---------------------------------------------------------------------
-    // Host-side controls used only by the testbench to load/read RAMs.
-    // The design engines still talk to RAM only through req/we/valid ports.
-    // ---------------------------------------------------------------------
     reg [1:0] owner_a;
     reg [1:0] owner_b;
     reg [1:0] owner_c;
@@ -94,25 +89,33 @@ module tb_v1;
     wire ram_sum_valid0, ram_sum_valid1;
 
     // ---------------------------------------------------------------------
-    // NTT core signals: one core per RAM used in the testbench.
+    // Single shared NTT core.
     // ---------------------------------------------------------------------
-    reg ntt_a_start, ntt_a_inverse;
-    wire ntt_a_busy, ntt_a_done;
-    wire ntt_a_req0, ntt_a_we0, ntt_a_req1, ntt_a_we1;
-    wire [ADDR_W-1:0] ntt_a_addr0, ntt_a_addr1;
-    wire [COEFF_W-1:0] ntt_a_wdata0, ntt_a_wdata1;
+    reg        ntt_start;
+    reg        ntt_inverse;
+    wire       ntt_busy;
+    wire       ntt_done;
 
-    reg ntt_b_start, ntt_b_inverse;
-    wire ntt_b_busy, ntt_b_done;
-    wire ntt_b_req0, ntt_b_we0, ntt_b_req1, ntt_b_we1;
-    wire [ADDR_W-1:0] ntt_b_addr0, ntt_b_addr1;
-    wire [COEFF_W-1:0] ntt_b_wdata0, ntt_b_wdata1;
+    reg [1:0]  ntt_target;
 
-    reg ntt_c_start, ntt_c_inverse;
-    wire ntt_c_busy, ntt_c_done;
-    wire ntt_c_req0, ntt_c_we0, ntt_c_req1, ntt_c_we1;
-    wire [ADDR_W-1:0] ntt_c_addr0, ntt_c_addr1;
-    wire [COEFF_W-1:0] ntt_c_wdata0, ntt_c_wdata1;
+    wire       ntt_req0, ntt_we0, ntt_req1, ntt_we1;
+    wire [ADDR_W-1:0]  ntt_addr0, ntt_addr1;
+    wire [COEFF_W-1:0] ntt_wdata0, ntt_wdata1;
+    wire [COEFF_W-1:0] ntt_rdata0, ntt_rdata1;
+    wire       ntt_valid0, ntt_valid1;
+
+    assign ntt_rdata0 = (ntt_target == RAM_A) ? ram_a_rdata0 :
+                        (ntt_target == RAM_B) ? ram_b_rdata0 :
+                        (ntt_target == RAM_C) ? ram_c_rdata0 : {COEFF_W{1'b0}};
+    assign ntt_rdata1 = (ntt_target == RAM_A) ? ram_a_rdata1 :
+                        (ntt_target == RAM_B) ? ram_b_rdata1 :
+                        (ntt_target == RAM_C) ? ram_c_rdata1 : {COEFF_W{1'b0}};
+    assign ntt_valid0 = (ntt_target == RAM_A) ? ram_a_valid0 :
+                        (ntt_target == RAM_B) ? ram_b_valid0 :
+                        (ntt_target == RAM_C) ? ram_c_valid0 : 1'b0;
+    assign ntt_valid1 = (ntt_target == RAM_A) ? ram_a_valid1 :
+                        (ntt_target == RAM_B) ? ram_b_valid1 :
+                        (ntt_target == RAM_C) ? ram_c_valid1 : 1'b0;
 
     // ---------------------------------------------------------------------
     // Polynomial addition and pointwise multiplication engine signals.
@@ -130,67 +133,66 @@ module tb_v1;
     wire [COEFF_W-1:0] pmul_a_wdata, pmul_b_wdata, pmul_c_wdata;
 
     // ---------------------------------------------------------------------
-    // RAM ownership muxes.  No '% N' address wrapping is used; ADDR_W slicing
-    // naturally maps counters into RAM addresses.
+    // RAM ownership muxes.
     // ---------------------------------------------------------------------
     assign ram_a_req0   = (owner_a == OWNER_HOST) ? host_a_req   :
-                          (owner_a == OWNER_NTT)  ? ntt_a_req0   :
+                          ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_req0 :
                           (owner_a == OWNER_ADD)  ? add_a_req   :
                           (owner_a == OWNER_PMUL) ? pmul_a_req  : 1'b0;
     assign ram_a_we0    = (owner_a == OWNER_HOST) ? host_a_we    :
-                          (owner_a == OWNER_NTT)  ? ntt_a_we0    :
+                          ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_we0 :
                           (owner_a == OWNER_ADD)  ? add_a_we    :
                           (owner_a == OWNER_PMUL) ? pmul_a_we   : 1'b0;
     assign ram_a_addr0  = (owner_a == OWNER_HOST) ? host_a_addr  :
-                          (owner_a == OWNER_NTT)  ? ntt_a_addr0  :
+                          ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_addr0 :
                           (owner_a == OWNER_ADD)  ? add_a_addr  :
                           (owner_a == OWNER_PMUL) ? pmul_a_addr : {ADDR_W{1'b0}};
     assign ram_a_wdata0 = (owner_a == OWNER_HOST) ? host_a_wdata :
-                          (owner_a == OWNER_NTT)  ? ntt_a_wdata0 :
+                          ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_wdata0 :
                           (owner_a == OWNER_ADD)  ? add_a_wdata :
                           (owner_a == OWNER_PMUL) ? pmul_a_wdata: {COEFF_W{1'b0}};
-    assign ram_a_req1   = (owner_a == OWNER_NTT) ? ntt_a_req1 : 1'b0;
-    assign ram_a_we1    = (owner_a == OWNER_NTT) ? ntt_a_we1  : 1'b0;
-    assign ram_a_addr1  = (owner_a == OWNER_NTT) ? ntt_a_addr1: {ADDR_W{1'b0}};
-    assign ram_a_wdata1 = (owner_a == OWNER_NTT) ? ntt_a_wdata1:{COEFF_W{1'b0}};
+    assign ram_a_req1   = ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_req1 : 1'b0;
+    assign ram_a_we1    = ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_we1  : 1'b0;
+    assign ram_a_addr1  = ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_addr1: {ADDR_W{1'b0}};
+    assign ram_a_wdata1 = ((owner_a == OWNER_NTT) && (ntt_target == RAM_A)) ? ntt_wdata1:{COEFF_W{1'b0}};
 
     assign ram_b_req0   = (owner_b == OWNER_HOST) ? host_b_req   :
-                          (owner_b == OWNER_NTT)  ? ntt_b_req0   :
+                          ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_req0 :
                           (owner_b == OWNER_ADD)  ? add_b_req   :
                           (owner_b == OWNER_PMUL) ? pmul_b_req  : 1'b0;
     assign ram_b_we0    = (owner_b == OWNER_HOST) ? host_b_we    :
-                          (owner_b == OWNER_NTT)  ? ntt_b_we0    :
+                          ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_we0 :
                           (owner_b == OWNER_ADD)  ? add_b_we    :
                           (owner_b == OWNER_PMUL) ? pmul_b_we   : 1'b0;
     assign ram_b_addr0  = (owner_b == OWNER_HOST) ? host_b_addr  :
-                          (owner_b == OWNER_NTT)  ? ntt_b_addr0  :
+                          ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_addr0 :
                           (owner_b == OWNER_ADD)  ? add_b_addr  :
                           (owner_b == OWNER_PMUL) ? pmul_b_addr : {ADDR_W{1'b0}};
     assign ram_b_wdata0 = (owner_b == OWNER_HOST) ? host_b_wdata :
-                          (owner_b == OWNER_NTT)  ? ntt_b_wdata0 :
+                          ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_wdata0 :
                           (owner_b == OWNER_ADD)  ? add_b_wdata :
                           (owner_b == OWNER_PMUL) ? pmul_b_wdata: {COEFF_W{1'b0}};
-    assign ram_b_req1   = (owner_b == OWNER_NTT) ? ntt_b_req1 : 1'b0;
-    assign ram_b_we1    = (owner_b == OWNER_NTT) ? ntt_b_we1  : 1'b0;
-    assign ram_b_addr1  = (owner_b == OWNER_NTT) ? ntt_b_addr1: {ADDR_W{1'b0}};
-    assign ram_b_wdata1 = (owner_b == OWNER_NTT) ? ntt_b_wdata1:{COEFF_W{1'b0}};
+    assign ram_b_req1   = ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_req1 : 1'b0;
+    assign ram_b_we1    = ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_we1  : 1'b0;
+    assign ram_b_addr1  = ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_addr1: {ADDR_W{1'b0}};
+    assign ram_b_wdata1 = ((owner_b == OWNER_NTT) && (ntt_target == RAM_B)) ? ntt_wdata1:{COEFF_W{1'b0}};
 
     assign ram_c_req0   = (owner_c == OWNER_HOST) ? host_c_req   :
-                          (owner_c == OWNER_NTT)  ? ntt_c_req0   :
+                          ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_req0 :
                           (owner_c == OWNER_PMUL) ? pmul_c_req  : 1'b0;
     assign ram_c_we0    = (owner_c == OWNER_HOST) ? host_c_we    :
-                          (owner_c == OWNER_NTT)  ? ntt_c_we0    :
+                          ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_we0 :
                           (owner_c == OWNER_PMUL) ? pmul_c_we   : 1'b0;
     assign ram_c_addr0  = (owner_c == OWNER_HOST) ? host_c_addr  :
-                          (owner_c == OWNER_NTT)  ? ntt_c_addr0  :
+                          ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_addr0 :
                           (owner_c == OWNER_PMUL) ? pmul_c_addr : {ADDR_W{1'b0}};
     assign ram_c_wdata0 = (owner_c == OWNER_HOST) ? host_c_wdata :
-                          (owner_c == OWNER_NTT)  ? ntt_c_wdata0 :
+                          ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_wdata0 :
                           (owner_c == OWNER_PMUL) ? pmul_c_wdata: {COEFF_W{1'b0}};
-    assign ram_c_req1   = (owner_c == OWNER_NTT) ? ntt_c_req1 : 1'b0;
-    assign ram_c_we1    = (owner_c == OWNER_NTT) ? ntt_c_we1  : 1'b0;
-    assign ram_c_addr1  = (owner_c == OWNER_NTT) ? ntt_c_addr1: {ADDR_W{1'b0}};
-    assign ram_c_wdata1 = (owner_c == OWNER_NTT) ? ntt_c_wdata1:{COEFF_W{1'b0}};
+    assign ram_c_req1   = ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_req1 : 1'b0;
+    assign ram_c_we1    = ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_we1  : 1'b0;
+    assign ram_c_addr1  = ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_addr1: {ADDR_W{1'b0}};
+    assign ram_c_wdata1 = ((owner_c == OWNER_NTT) && (ntt_target == RAM_C)) ? ntt_wdata1:{COEFF_W{1'b0}};
 
     assign ram_sum_req0   = (owner_sum == OWNER_HOST) ? host_sum_req   :
                             (owner_sum == OWNER_ADD)  ? add_c_req     : 1'b0;
@@ -235,22 +237,10 @@ module tb_v1;
     // ---------------------------------------------------------------------
     // Engine instances
     // ---------------------------------------------------------------------
-    ntt_core u_ntt_a (
-        .clk(clk), .rst(rst), .start(ntt_a_start), .inverse(ntt_a_inverse), .busy(ntt_a_busy), .done(ntt_a_done),
-        .ram0_req(ntt_a_req0), .ram0_we(ntt_a_we0), .ram0_addr(ntt_a_addr0), .ram0_wdata(ntt_a_wdata0), .ram0_rdata(ram_a_rdata0), .ram0_valid(ram_a_valid0),
-        .ram1_req(ntt_a_req1), .ram1_we(ntt_a_we1), .ram1_addr(ntt_a_addr1), .ram1_wdata(ntt_a_wdata1), .ram1_rdata(ram_a_rdata1), .ram1_valid(ram_a_valid1)
-    );
-
-    ntt_core u_ntt_b (
-        .clk(clk), .rst(rst), .start(ntt_b_start), .inverse(ntt_b_inverse), .busy(ntt_b_busy), .done(ntt_b_done),
-        .ram0_req(ntt_b_req0), .ram0_we(ntt_b_we0), .ram0_addr(ntt_b_addr0), .ram0_wdata(ntt_b_wdata0), .ram0_rdata(ram_b_rdata0), .ram0_valid(ram_b_valid0),
-        .ram1_req(ntt_b_req1), .ram1_we(ntt_b_we1), .ram1_addr(ntt_b_addr1), .ram1_wdata(ntt_b_wdata1), .ram1_rdata(ram_b_rdata1), .ram1_valid(ram_b_valid1)
-    );
-
-    ntt_core u_ntt_c (
-        .clk(clk), .rst(rst), .start(ntt_c_start), .inverse(ntt_c_inverse), .busy(ntt_c_busy), .done(ntt_c_done),
-        .ram0_req(ntt_c_req0), .ram0_we(ntt_c_we0), .ram0_addr(ntt_c_addr0), .ram0_wdata(ntt_c_wdata0), .ram0_rdata(ram_c_rdata0), .ram0_valid(ram_c_valid0),
-        .ram1_req(ntt_c_req1), .ram1_we(ntt_c_we1), .ram1_addr(ntt_c_addr1), .ram1_wdata(ntt_c_wdata1), .ram1_rdata(ram_c_rdata1), .ram1_valid(ram_c_valid1)
+    ntt_core u_ntt (
+        .clk(clk), .rst(rst), .start(ntt_start), .inverse(ntt_inverse), .busy(ntt_busy), .done(ntt_done),
+        .ram0_req(ntt_req0), .ram0_we(ntt_we0), .ram0_addr(ntt_addr0), .ram0_wdata(ntt_wdata0), .ram0_rdata(ntt_rdata0), .ram0_valid(ntt_valid0),
+        .ram1_req(ntt_req1), .ram1_we(ntt_we1), .ram1_addr(ntt_addr1), .ram1_wdata(ntt_wdata1), .ram1_rdata(ntt_rdata1), .ram1_valid(ntt_valid1)
     );
 
     poly_add_engine u_poly_add (
@@ -279,17 +269,26 @@ module tb_v1;
         end
     endtask
 
+    task set_ram_owner;
+        input integer ram_id;
+        input [1:0] owner;
+        begin
+            case (ram_id)
+                RAM_A:   owner_a   = owner;
+                RAM_B:   owner_b   = owner;
+                RAM_C:   owner_c   = owner;
+                RAM_SUM: owner_sum = owner;
+                default: begin end
+            endcase
+        end
+    endtask
+
     task host_write;
         input integer ram_id;
         input integer addr;
         input [COEFF_W-1:0] data;
         begin
-            case (ram_id)
-                RAM_A:   owner_a   = OWNER_HOST;
-                RAM_B:   owner_b   = OWNER_HOST;
-                RAM_C:   owner_c   = OWNER_HOST;
-                RAM_SUM: owner_sum = OWNER_HOST;
-            endcase
+            set_ram_owner(ram_id, OWNER_HOST);
 
             @(negedge clk);
             case (ram_id)
@@ -313,12 +312,7 @@ module tb_v1;
         input integer addr;
         output [COEFF_W-1:0] data;
         begin
-            case (ram_id)
-                RAM_A:   owner_a   = OWNER_HOST;
-                RAM_B:   owner_b   = OWNER_HOST;
-                RAM_C:   owner_c   = OWNER_HOST;
-                RAM_SUM: owner_sum = OWNER_HOST;
-            endcase
+            set_ram_owner(ram_id, OWNER_HOST);
 
             @(negedge clk);
             case (ram_id)
@@ -356,7 +350,7 @@ module tb_v1;
 
     task run_poly_add;
         begin
-            $display("[TB] polynomial addition: c = a + b mod q");
+            $display("[TB] polynomial addition: sum = a + b mod q");
             owner_a   = OWNER_ADD;
             owner_b   = OWNER_ADD;
             owner_sum = OWNER_ADD;
@@ -370,42 +364,33 @@ module tb_v1;
         end
     endtask
 
-    task run_ntt_a;
+    task run_ntt;
+        input integer ram_id;
         input inv;
         begin
-            owner_a = OWNER_NTT;
-            ntt_a_inverse = inv;
-            @(negedge clk); ntt_a_start = 1'b1;
-            @(negedge clk); ntt_a_start = 1'b0;
-            wait (ntt_a_done == 1'b1);
-            @(negedge clk);
             owner_a = OWNER_HOST;
-        end
-    endtask
-
-    task run_ntt_b;
-        input inv;
-        begin
-            owner_b = OWNER_NTT;
-            ntt_b_inverse = inv;
-            @(negedge clk); ntt_b_start = 1'b1;
-            @(negedge clk); ntt_b_start = 1'b0;
-            wait (ntt_b_done == 1'b1);
-            @(negedge clk);
             owner_b = OWNER_HOST;
-        end
-    endtask
-
-    task run_ntt_c;
-        input inv;
-        begin
-            owner_c = OWNER_NTT;
-            ntt_c_inverse = inv;
-            @(negedge clk); ntt_c_start = 1'b1;
-            @(negedge clk); ntt_c_start = 1'b0;
-            wait (ntt_c_done == 1'b1);
-            @(negedge clk);
             owner_c = OWNER_HOST;
+
+            case (ram_id)
+                RAM_A: ntt_target = 2'd0;
+                RAM_B: ntt_target = 2'd1;
+                RAM_C: ntt_target = 2'd2;
+                default: begin
+                    $display("ERROR: run_ntt called with unsupported RAM id %0d", ram_id);
+                    $finish;
+                end
+            endcase
+
+            ntt_inverse = inv;
+            set_ram_owner(ram_id, OWNER_NTT);
+
+            @(negedge clk); ntt_start = 1'b1;
+            @(negedge clk); ntt_start = 1'b0;
+            wait (ntt_done == 1'b1);
+            @(negedge clk);
+
+            set_ram_owner(ram_id, OWNER_HOST);
         end
     endtask
 
@@ -482,9 +467,9 @@ module tb_v1;
         owner_sum = OWNER_HOST;
         add_start = 1'b0;
         pmul_start = 1'b0;
-        ntt_a_start = 1'b0; ntt_a_inverse = 1'b0;
-        ntt_b_start = 1'b0; ntt_b_inverse = 1'b0;
-        ntt_c_start = 1'b0; ntt_c_inverse = 1'b0;
+        ntt_start = 1'b0;
+        ntt_inverse = 1'b0;
+        ntt_target = 2'd0;
         clear_host_controls();
 
         repeat (8) @(negedge clk);
@@ -492,30 +477,31 @@ module tb_v1;
         repeat (2) @(negedge clk);
 
         $display("[TB] v1 parameters: N=%0d q=%0d coeff_w=%0d", N, `MOD_Q, COEFF_W);
+        $display("[TB] architecture: one shared ntt_core, time-multiplexed over RAM_A/RAM_B/RAM_C");
 
         load_inputs();
         run_poly_add();
         check_sum_ram();
 
         load_inputs();
-        $display("[TB] forward NTT(a)");
-        run_ntt_a(1'b0);
-        $display("[TB] inverse NTT(a)");
-        run_ntt_a(1'b1);
+        $display("[TB] shared NTT: forward NTT(a) on RAM_A");
+        run_ntt(RAM_A, 1'b0);
+        $display("[TB] shared NTT: inverse NTT(a) on RAM_A");
+        run_ntt(RAM_A, 1'b1);
         check_a_roundtrip();
 
         load_inputs();
-        $display("[TB] forward NTT(a)");
-        run_ntt_a(1'b0);
-        $display("[TB] forward NTT(b)");
-        run_ntt_b(1'b0);
+        $display("[TB] shared NTT: forward NTT(a) on RAM_A");
+        run_ntt(RAM_A, 1'b0);
+        $display("[TB] shared NTT: forward NTT(b) on RAM_B");
+        run_ntt(RAM_B, 1'b0);
         run_pointwise_mul();
-        $display("[TB] inverse NTT(product)");
-        run_ntt_c(1'b1);
+        $display("[TB] shared NTT: inverse NTT(product) on RAM_C");
+        run_ntt(RAM_C, 1'b1);
         check_mul_ram();
 
         if (errors == 0) begin
-            $display("PASS: all v1 RAM/handshake NTT tests passed");
+            $display("PASS: all v1 single-NTT RAM/handshake tests passed");
         end else begin
             $display("FAIL: %0d mismatches", errors);
         end
