@@ -25,7 +25,7 @@ module ntt_core (...);
 
 ### 2.1 Module Names
 
-Module names: **lowercase snake_case**.
+Module names: **lower_snake_case**.
 
 ```verilog
 module mod_add (...);
@@ -67,7 +67,7 @@ mod_sub u_fwd_sub (...);
 
 ---
 
-### 2.3 Parameters, Localparams, and Macros
+### 2.3 Parameters, Localparams, Macros
 
 Constant-like values, Header macros: **UPPER_SNAKE_CASE**.
 
@@ -247,8 +247,6 @@ tw_addr_full
 r0_wide
 ```
 
-Computation results use nouns that describe the operation result.
-
 ---
 
 ### 2.9 Testbench Task Names
@@ -272,7 +270,7 @@ task check_mul_ram;
 
 ---
 
-## 6. Abbreviation Rules
+## 3. Abbreviation Rules
 
 
 | Abbreviation | Meaning | Examples |
@@ -295,27 +293,6 @@ task check_mul_ram;
 - Keep existing project abbreviations unchanged.
 - When adding a new abbreviation, document here.
 
----
-
-
-
-### 7.3 `valid` and `val`
-
-Most signals use `_valid`, but some selection signals use the shortened `_val` form.
-
-```verilog
-selected_twist_val
-selected_tw_val
-```
-
-For new code, use `_valid` for consistency.
-
-```text
-selected_twist_valid
-selected_tw_valid
-```
-
-When matching existing code is required, keep the existing names.
 
 ---
 
