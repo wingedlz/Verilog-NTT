@@ -119,10 +119,10 @@ module ntt_core #(
         .rdata(twiddle_inv_data), .valid(twiddle_inv_valid)
     );
 
-    wire [COEFF_W-1:0] selected_twist_data = mode_inverse ? twist_inv_data : twist_fwd_data;
-    wire               selected_twist_val  = mode_inverse ? twist_inv_valid : twist_fwd_valid;
-    wire [COEFF_W-1:0] selected_tw_data    = mode_inverse ? twiddle_inv_data : twiddle_fwd_data;
-    wire               selected_tw_val     = mode_inverse ? twiddle_inv_valid : twiddle_fwd_valid;
+    wire [COEFF_W-1:0] selected_twist_data  = mode_inverse ? twist_inv_data : twist_fwd_data;
+    wire               selected_twist_valid = mode_inverse ? twist_inv_valid : twist_fwd_valid;
+    wire [COEFF_W-1:0] selected_tw_data     = mode_inverse ? twiddle_inv_data : twiddle_fwd_data;
+    wire               selected_tw_valid    = mode_inverse ? twiddle_inv_valid : twiddle_fwd_valid;
 
     // -------------------------------------------------------------------------
     // Butterfly arithmetic
@@ -278,7 +278,7 @@ module ntt_core #(
                 end
 
                 S_TW_WAIT: begin
-                    if (ram0_valid && selected_twist_val) begin
+                    if (ram0_valid && selected_twist_valid) begin
                         u_reg     <= ram0_rdata;
                         scale_reg <= selected_twist_data;
                         state     <= S_TW_WRITE;
@@ -309,7 +309,7 @@ module ntt_core #(
                 end
 
                 S_BF_WAIT: begin
-                    if (ram0_valid && ram1_valid && selected_tw_val) begin
+                    if (ram0_valid && ram1_valid && selected_tw_valid) begin
                         u_reg  <= ram0_rdata;
                         v_reg  <= ram1_rdata;
                         tw_reg <= selected_tw_data;

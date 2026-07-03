@@ -49,8 +49,6 @@ def write_vectors(path: Path, a, b):
     mul = direct_negacyclic_mul(a, b)
     with path.open("w") as f:
         f.write("// Auto-generated/updated by scripts/update_expected_vectors.py.\n")
-        f.write("// You may edit a_init[] and b_init[] directly, then run `make expected`.\n")
-        f.write("// exp_add[] and exp_mul[] are golden references for the testbench.\n\n")
         for name, vec in [("a_init", a), ("b_init", b), ("exp_add", add), ("exp_mul", mul)]:
             f.write(f"// {name}\n")
             for i, v in enumerate(vec):
