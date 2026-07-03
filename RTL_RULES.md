@@ -379,11 +379,6 @@ project/
     └── tb_v1.sv
 ```
 
-
----
-
-
-
 ---
 
 # `` `timescale`` and `` `default_nettype``
